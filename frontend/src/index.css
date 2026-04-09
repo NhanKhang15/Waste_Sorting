@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Manrope", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+ /* Bảng màu gốc từ WasteWise  */
+  --color-primary: #006e1c;
+  --color-primary-container: #4caf50;
+  --color-on-primary: #ffffff;
+  --color-surface: #f5fbef;
+  --color-on-surface: #171d16;
+  --color-on-surface-variant: #3f4a3c;
+  --color-surface-container-low: #f0f6ea;
+  --color-surface-container-lowest: #ffffff;
+  --color-outline: #6f7a6b;
+  --color-outline-variant: #becab9;
+  --color-secondary-container: #fed7ca;
+  --color-on-secondary-container: #795c51;
+}
+
+@layer base {
+  body { @apply font-body bg-surface text-on-surface; }
+}
+
+ /* Gradient đặc trưng của bản gốc  */
+.bg-editorial-gradient {
+  background: radial-gradient(circle at 10% 20%, rgba(148, 249, 144, 0.05) 0%, rgba(245, 251, 239, 1) 90%);
+} 
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
