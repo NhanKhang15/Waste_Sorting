@@ -1,65 +1,90 @@
-import React from 'react';
 import { useClassify } from '../features/classification/hooks/useClassify';
-import ImageCanvas from '../features/classification/components/ImageCanvas';
 import DSLEditor from '../features/classification/components/DSLEditor';
 import TreeVisualizer from '../features/classification/components/TreeVisualizer';
+import ClassificationForm from '../features/classification/components/ClassificationForm';
+import MatchResult from '../features/classification/components/MatchResult';
+import ImageCanvas from '../features/classification/components/ImageCanvas';
 
 const Dashboard = () => {
   const { classify, data, loading } = useClassify();
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) classify(file);
-  };
-
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      {/* 1. Sidebar (Bạn có thể tách thành component riêng sau) */}
-      <aside className="w-64 bg-surface-container-low p-8 border-r border-outline/10">
-        <h2 className="text-primary text-2xl font-black mb-10">WasteWise</h2>
-        <input type="file" onChange={handleFileUpload} className="hidden" id="upload" />
-        <label htmlFor="upload" className="block w-full py-4 bg-primary text-white text-center rounded-full cursor-pointer hover:opacity-90 transition-all font-bold">
-          {loading ? 'Analyzing...' : 'New Scan'}
-        </label>
-      </aside>
+    <div className="min-h-screen bg-[#f5fbef] p-6 lg:p-10 font-sans text-on-surface">
+      <main className="max-w-[1400px] mx-auto space-y-8">
+        
+        {/* SECTION 1: Điều khiển - Trải dài toàn bộ chiều rộng */}
+        <section className="w-full">
+          <header className="mb-6">
+            <h1 className="text-5xl font-black italic text-primary tracking-tighter">
+              Waste <span className="text-on-surface">Finder.</span>
+            </h1>
+          </header>
+          <ClassificationForm onScan={classify} loading={loading} />
+        </section>
 
-      {/* 2. Main Content Canvas */}
-      <main className="flex-1 p-8 overflow-y-auto">
-        <header className="mb-10">
-          <h1 className="text-6xl font-headline font-extrabold italic text-on-surface">Scan <span className="text-primary">Waste.</span></h1>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cột trái & giữa: YOLO Viewport & Parse Tree */}
-          <div className="lg:col-span-2 space-y-8">
-            {data ? (
-              <>
-                <ImageCanvas imageUrl={data.imageUrl} boxes={data.detectedObjects} />
-                <div className="bg-white p-6 rounded-[2rem] shadow-sm">
-                   <h3 className="text-xl font-bold mb-4">Abstract Syntax Tree (PPL Core)</h3>
-                   <TreeVisualizer data={data.parseTree} />
-                </div>
-              </>
-            ) : (
-              <div className="aspect-video bg-surface-container-low rounded-[2rem] flex items-center justify-center border-4 border-dashed border-outline/20 italic text-on-surface-variant">
-                Vui lòng upload ảnh để bắt đầu phân tích...
+        {/* SECTION 2: Lưới nội dung chính (12 cột) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* CỘT TRÁI (8 Cột): Hiển thị hình ảnh */}
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Khối Ảnh Gốc */}
+            <div className="flex flex-col">
+              <h3 className="text-[10px] font-bold uppercase opacity-40 mb-3 tracking-widest">Raw Analysis</h3>
+              <div className="bg-white p-4 rounded-3xl shadow-sm border border-outline/5 flex-1 min-h-[350px]">
+                {data ? (
+                  <ImageCanvas imageUrl={data.imageUrl} boxes={data.detectedObjects} />
+                ) : (
+                  <div className="h-full flex items-center justify-center italic text-xs opacity-30 border-2 border-dashed border-primary/10 rounded-2xl">
+                    Chờ dữ liệu hình ảnh...
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Khối Ảnh Cắt */}
+            <div className="flex flex-col">
+              <h3 className="text-[10px] font-bold uppercase opacity-40 mb-3 tracking-widest">Query Matches</h3>
+              <div className="bg-white p-4 rounded-3xl shadow-sm border border-outline/5 flex-1 min-h-[350px]">
+                <MatchResult 
+                  objects={data?.detectedObjects || []} 
+                  status={loading ? 'Scanning' : (data ? 'Success' : 'Waiting')} 
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Cột phải: Generated DSL & Result */}
-          <aside className="space-y-6">
-            <div className="h-[400px]">
-               <DSLEditor code={data?.dslCode || "// DSL will be generated here..."} />
-            </div>
-            
-            {data && (
-              <div className="bg-primary text-white p-6 rounded-3xl shadow-lg">
-                <h4 className="text-xs uppercase font-bold tracking-widest opacity-80 mb-2">Final Verdict</h4>
-                <p className="text-lg font-bold">{data.result}</p>
+          {/* CỘT PHẢI (4 Cột): Logic PPL */}
+          <aside className="lg:col-span-4 space-y-6">
+            <div className="bg-[#1e1e1e] rounded-3xl overflow-hidden shadow-2xl border border-white/5">
+              <div className="p-4 border-b border-white/10 flex justify-between items-center">
+                <span className="text-[10px] font-bold text-white/40 uppercase">Generated DSL</span>
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
               </div>
-            )}
+              {/* Giới hạn chiều cao DSL để không bị quá dài */}
+              <div className="max-h-[250px] overflow-auto">
+                <DSLEditor code={data?.dslCode || "// Waiting for input..."} />
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-outline/5 overflow-hidden"> 
+              <h3 className="text-[10px] font-bold uppercase opacity-40 mb-4 tracking-widest">
+                Abstract Syntax Tree
+              </h3>
+              
+              {/* Đảm bảo container này có chiều cao cố định và relative */}
+              <div className="h-[300px] w-full bg-surface-container-lowest rounded-xl relative">
+                {data?.parseTree ? (
+                  <TreeVisualizer data={data.parseTree} />
+                ) : (
+                  <div className="h-full flex items-center justify-center text-[10px] italic opacity-20">
+                    Tree will render here
+                  </div>
+                )}
+              </div>
+            </div>
           </aside>
+
         </div>
       </main>
     </div>
