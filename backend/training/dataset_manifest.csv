@@ -1,0 +1,5 @@
+source_path,split,image_name,label_name,box_count
+chai-thuy-tinh-va-chai-nhua.webp,val,0001_chai-thuy-tinh-va-chai-nhua.jpg,0001_chai-thuy-tinh-va-chai-nhua.txt,3
+chai-thuy-tinh-hay-chai-nhua.jpg,train,0002_chai-thuy-tinh-hay-chai-nhua.jpg,0002_chai-thuy-tinh-hay-chai-nhua.txt,2
+nen-chon-chai-nhua-hay-chai-thuy-tinh-dung-do-uong.webp,train,0003_nen-chon-chai-nhua-hay-chai-thuy-tinh-dung-do-uong.jpg,0003_nen-chon-chai-nhua-hay-chai-thuy-tinh-dung-do-uong.txt,1
+17262788773980.png,train,0004_17262788773980.jpg,0004_17262788773980.txt,3

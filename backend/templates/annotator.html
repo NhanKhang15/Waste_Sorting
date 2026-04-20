@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Material Annotator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='annotator.css') }}" />
+  </head>
+  <body>
+    <main class="annotator-shell">
+      <section class="annotator-topbar">
+        <div>
+          <p class="eyebrow">Material Training</p>
+          <h1>Gán nhãn bbox cho plastic và glass</h1>
+          <p class="subcopy">
+            Chọn ảnh trong thư mục <strong>training_image</strong>, kéo chuột để vẽ box, chọn class
+            vật liệu rồi lưu label YOLO vào <strong>training_labels</strong>.
+          </p>
+        </div>
+        <div class="topbar-actions">
+          <a class="ghost-link" href="/">Về trang scan</a>
+        </div>
+      </section>
+
+      <section class="annotator-layout">
+        <aside class="annotator-sidebar">
+          <div class="panel-title">Danh sách ảnh train</div>
+          <div id="image-list" class="image-list"></div>
+        </aside>
+
+        <section class="annotator-main">
+          <div class="annotator-toolbar">
+            <label class="field compact-field">
+              <span>Class hiện tại</span>
+              <select id="class-select"></select>
+            </label>
+            <button id="save-button" type="button">Lưu label</button>
+            <button id="clear-button" type="button" class="secondary-button">Xóa hết box</button>
+          </div>
+
+          <div id="annotator-feedback" class="feedback">Chọn một ảnh ở cột trái để bắt đầu annotate.</div>
+
+          <div class="canvas-panel">
+            <canvas id="annotator-canvas"></canvas>
+          </div>
+        </section>
+
+        <aside class="annotations-panel">
+          <div class="panel-title">Boxes hiện có</div>
+          <div id="annotation-list" class="annotation-list"></div>
+        </aside>
+      </section>
+    </main>
+
+    <template id="image-item-template">
+      <button type="button" class="image-item">
+        <strong class="image-name"></strong>
+        <span class="image-meta"></span>
+      </button>
+    </template>
+
+    <template id="annotation-item-template">
+      <article class="annotation-item">
+        <div>
+          <strong class="annotation-name"></strong>
+          <span class="annotation-coords"></span>
+        </div>
+        <button type="button" class="annotation-delete">Xóa</button>
+      </article>
+    </template>
+
+    <script src="{{ url_for('static', filename='annotator.js') }}" defer></script>
+  </body>
+</html>
