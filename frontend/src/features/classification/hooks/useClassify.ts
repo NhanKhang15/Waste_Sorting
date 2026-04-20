@@ -1,50 +1,78 @@
-import { useState } from "react";
-
-export interface DetectedObject {
-  label: string;
-  confidence: number;
-  bbox: number[];
-  cropUrl: string; // Backend sẽ cung cấp URL ảnh đã cắt dựa trên bbox
-}
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ApiError } from "../../../api/client";
+import { detectWaste } from "../services/api";
+import type { DetectionObject, DetectionResponse } from "../../../types/waste";
 
 export interface UseClassifyData {
-    imageUrl: string;
-    detectedObjects: DetectedObject[];
-    dslCode: string;
-    parseTree: any;
-    result: string;
+  imageUrl: string;
+  response: DetectionResponse;
+  filteredDetections: DetectionObject[];
+  query: string;
+}
+
+function filterDetections(
+  detections: DetectionObject[],
+  query: string,
+): DetectionObject[] {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return detections;
+
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const matched = detections.filter((det) =>
+    tokens.some((token) => det.label.toLowerCase().includes(token)),
+  );
+
+  return matched.length > 0 ? matched : detections;
 }
 
 export const useClassify = () => {
-    const [loading, setLoading] = useState(false);
-    const [data, setData] = useState<UseClassifyData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<UseClassifyData | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
 
-    const classify = async (file: File, query: string) => {
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  const classify = useCallback(async (file: File, query: string) => {
     setLoading(true);
-    console.log("Searching for:", query);
-    // Giả lập gọi API (Mock API) - team Backend sẽ thay bằng axios call thật sau này
-    setTimeout(() => {
+    setError(null);
+
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
+    const imageUrl = URL.createObjectURL(file);
+    objectUrlRef.current = imageUrl;
+
+    try {
+      const response = await detectWaste(file);
       setData({
-        imageUrl: URL.createObjectURL(file),
-        detectedObjects: [
-          { 
-            label: 'bottle', 
-            confidence: 0.89, 
-            bbox: [20, 30, 40, 50],
-            cropUrl: 'https://picsum.photos/200' // Thêm dữ liệu giả để test giao diện
-          }
-        ],
-        dslCode: `item "bottle" material "plastic" confidence 0.89\nrule recyclable: material == "plastic"`,
-        parseTree: {
-          name: "Program",
-          children: [{ name: "RuleStmt", children: [{ name: "Recyclable" }] }]
-        },
-        result: "Phân loại: Thùng nhựa - Cộng 10 điểm cho ID 18"
+        imageUrl,
+        response,
+        filteredDetections: filterDetections(response.detections, query),
+        query,
       });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Unknown error while calling the detection service.";
+      setError(message);
+      setData(null);
+      URL.revokeObjectURL(imageUrl);
+      objectUrlRef.current = null;
+    } finally {
       setLoading(false);
-    }, 1500);
-  };
+    }
+  }, []);
 
-  return { classify, data, loading };
+  return { classify, data, loading, error };
 };
-

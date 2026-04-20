@@ -1,0 +1,6 @@
+path: E:/testYolo/datasets/material_detection
+train: images/train
+val: images/val
+names:
+  0: plastic
+  1: glass
