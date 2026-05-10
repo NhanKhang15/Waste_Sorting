@@ -1,0 +1,30 @@
+{
+  "source_annotations_total": 4784,
+  "source_categories_total": 60,
+  "images_total": 1500,
+  "images_after_mapping": 1481,
+  "target_classes": [
+    "organic",
+    "recyclable",
+    "inorganic"
+  ],
+  "target_box_counts": {
+    "recyclable": 1944,
+    "inorganic": 2315,
+    "organic": 8
+  },
+  "target_image_counts": {
+    "inorganic": 968,
+    "recyclable": 946,
+    "organic": 7
+  },
+  "skipped_source_categories": {
+    "Unlabeled litter": 517
+  },
+  "split_image_counts": {
+    "val": 222,
+    "test": 74,
+    "train": 1185
+  },
+  "copy_mode": "hardlink"
+}

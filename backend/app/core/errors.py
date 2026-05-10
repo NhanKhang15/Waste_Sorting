@@ -12,3 +12,7 @@ class ModelNotConfiguredError(YoloBackendError):
 
 class InferenceError(YoloBackendError):
     """Raised when model inference output cannot be produced safely."""
+
+
+class InvalidWasteQueryError(YoloBackendError):
+    """Raised when a waste-group query is unsupported."""

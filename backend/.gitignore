@@ -1,4 +1,70 @@
+# Virtual environments
+.venv/
+.venv-runtime/
+venv/
+env/
+ENV/
+.deps/
+.tmp/
+
+# Python cache
 __pycache__/
-.pytest_cache/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Environment variables / secrets
 .env
-runtime/weights/*.pt
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# Model weights (share via Google Drive / HF / S3)
+*.pt
+*.pth
+*.onnx
+*.weights
+*.h5
+*.ckpt
+
+# Training data & outputs (too large for git)
+datasets/
+training_image/
+training_labels/
+runs/
+logs/
+wandb/
+mlruns/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Uploaded / generated content (runtime only)
+static/uploads/
+static/annotated/
+static/crops/
+media/

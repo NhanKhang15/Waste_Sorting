@@ -1,15 +1,16 @@
 # YOLOv26 Backend
 
-This backend is intentionally focused on YOLOv26 inference only.
-ANTLR, DSL parsing, auth, history, and frontend integration are deferred.
+This backend is standardized around the `FastAPI` app in `backend/app/`.
+The current detection flow is hybrid: a trained waste detector runs first, then the API falls back to COCO detections plus rule mapping when needed.
 
 ## Scope
 
-- FastAPI service dedicated to YOLOv26 detection
+- FastAPI service dedicated to waste and YOLO inference
 - Lazy model loading with configurable local weights
 - Image validation before inference
-- Structured JSON output for detections and model status
-- Tests for config, validation, and detector serialization
+- Hybrid waste matching: custom waste model first, COCO plus rule mapping as fallback
+- Structured JSON output for detections, model status, and hybrid decisions
+- Tests for config, validation, detector serialization, and hybrid waste routing
 
 ## Project Layout
 
@@ -22,6 +23,8 @@ backend/
     services/
   runtime/
     weights/
+  runs/
+    waste_detector/
   tests/
   main.py
   requirements.txt
@@ -37,7 +40,8 @@ backend/
    ```
 
 3. Copy `.env.example` to `.env` if you want custom settings.
-4. Place your YOLOv26 weights at `backend/runtime/weights/yolo26n.pt`, or point `WASTE_YOLOV26_WEIGHTS_PATH` to a different local `.pt` file.
+4. Keep the COCO fallback weights at `backend/runtime/weights/yolo26n.pt`.
+5. Keep the trained waste model at `backend/runs/waste_detector/waste_yolo26s_taco/weights/best.pt`, or override `WASTE_DETECTOR_WEIGHTS_PATH`.
 
 ## Run
 
@@ -47,24 +51,37 @@ From the `backend/` directory:
 uvicorn main:app --reload
 ```
 
-Swagger UI will be available at `http://127.0.0.1:8000/docs`.
+Or:
+
+```powershell
+python main.py
+```
+
+Swagger UI is available at `http://127.0.0.1:8000/docs`.
 
 ## Endpoints
 
 - `GET /api/v1/healthz`
 - `GET /api/v1/yolov26/model`
 - `POST /api/v1/yolov26/detect`
+- `GET /api/v1/waste/queries`
+- `GET /api/v1/waste/models`
+- `POST /api/v1/waste/find`
 
-Example request:
+Example request for hybrid waste detection:
 
 ```powershell
-curl.exe -X POST "http://127.0.0.1:8000/api/v1/yolov26/detect" `
+curl.exe -X POST "http://127.0.0.1:8000/api/v1/waste/find" `
   -H "accept: application/json" `
   -H "Content-Type: multipart/form-data" `
+  -F "query=find me recyclable waste" `
   -F "file=@sample.png"
 ```
 
-## Important Assumption
+The response includes `engine_used`, `decision_reason`, `primary_result`, and `fallback_result` so you can see which branch won.
 
-The code uses the `ultralytics` runtime to serve a YOLOv26-compatible `.pt` file.
-The actual weights are not committed to the repo.
+## Supported Waste Queries
+
+- `find me organic waste`
+- `find me recyclable waste`
+- `find me inorganic waste`

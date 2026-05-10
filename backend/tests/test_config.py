@@ -1,12 +1,16 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from app.core.config import BACKEND_DIR, Settings
 
 
 
-def test_resolved_weights_path_is_backend_relative() -> None:
-    settings = Settings(yolov26_weights_path=Path("runtime/weights/custom.pt"))
+def test_resolved_weights_paths_are_backend_relative() -> None:
+    settings = Settings(
+        yolov26_weights_path=Path("runtime/weights/custom.pt"),
+        waste_detector_weights_path=Path("runs/waste_detector/custom/best.pt"),
+    )
     assert settings.resolved_weights_path == BACKEND_DIR / "runtime/weights/custom.pt"
+    assert settings.resolved_waste_detector_weights_path == BACKEND_DIR / "runs/waste_detector/custom/best.pt"
 
 
 

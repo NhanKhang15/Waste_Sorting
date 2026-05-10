@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from collections import Counter
 from threading import Lock
@@ -36,18 +36,18 @@ class YoloV26Detector:
         self._load_model()
 
     def get_model_status(self) -> ModelStatusResponse:
-        weights_path = self._settings.resolved_weights_path
+        weights_path = self._weights_path
         return ModelStatusResponse(
-            name=self._settings.yolov26_model_name,
+            name=self._model_name,
             weights_path=str(weights_path),
             weights_present=weights_path.exists(),
             model_loaded=self._model is not None,
-            device=self._settings.yolov26_device,
-            image_size=self._settings.yolov26_image_size,
-            confidence_threshold=self._settings.yolov26_confidence_threshold,
-            iou_threshold=self._settings.yolov26_iou_threshold,
-            max_detections=self._settings.yolov26_max_detections,
-            preload_on_startup=self._settings.yolov26_preload_on_startup,
+            device=self._device,
+            image_size=self._image_size,
+            confidence_threshold=self._confidence_threshold,
+            iou_threshold=self._iou_threshold,
+            max_detections=self._max_detections,
+            preload_on_startup=self._preload_on_startup,
         )
 
     def detect(
@@ -69,15 +69,15 @@ class YoloV26Detector:
         try:
             results = model.predict(
                 source=validated_image.image,
-                conf=self._settings.yolov26_confidence_threshold,
-                iou=self._settings.yolov26_iou_threshold,
-                imgsz=self._settings.yolov26_image_size,
-                device=self._settings.yolov26_device,
-                max_det=self._settings.yolov26_max_detections,
+                conf=self._confidence_threshold,
+                iou=self._iou_threshold,
+                imgsz=self._image_size,
+                device=self._device,
+                max_det=self._max_detections,
                 verbose=False,
             )
         except Exception as exc:
-            raise InferenceError(f"YOLOv26 inference failed: {exc}") from exc
+            raise InferenceError(f"{self._model_name} inference failed: {exc}") from exc
 
         detections = self._serialize_detections(results)
         class_counts = dict(Counter(detection.label for detection in detections))
@@ -98,8 +98,8 @@ class YoloV26Detector:
                 total_detections=len(detections),
                 unique_labels=sorted(class_counts),
                 class_counts=class_counts,
-                confidence_threshold=self._settings.yolov26_confidence_threshold,
-                iou_threshold=self._settings.yolov26_iou_threshold,
+                confidence_threshold=self._confidence_threshold,
+                iou_threshold=self._iou_threshold,
                 inference_ms=round((perf_counter() - started_at) * 1000, 2),
             ),
         )
@@ -112,11 +112,11 @@ class YoloV26Detector:
             if self._model is not None:
                 return self._model
 
-            weights_path = self._settings.resolved_weights_path
+            weights_path = self._weights_path
             if not weights_path.exists():
                 raise ModelNotConfiguredError(
-                    "YOLOv26 weights were not found at "
-                    f"'{weights_path}'. Configure WASTE_YOLOV26_WEIGHTS_PATH first."
+                    f"{self._model_name} weights were not found at "
+                    f"'{weights_path}'. Configure the matching WASTE_*_WEIGHTS_PATH first."
                 )
 
             factory = self._model_factory or self._default_model_factory
@@ -124,7 +124,7 @@ class YoloV26Detector:
                 self._model = factory(str(weights_path))
             except Exception as exc:
                 raise ModelNotConfiguredError(
-                    "Failed to load YOLOv26 weights from "
+                    f"Failed to load {self._model_name} weights from "
                     f"'{weights_path}': {exc}"
                 ) from exc
 
@@ -140,6 +140,38 @@ class YoloV26Detector:
             ) from exc
         return YOLO(weights_path)
 
+    @property
+    def _model_name(self) -> str:
+        return self._settings.yolov26_model_name
+
+    @property
+    def _weights_path(self):
+        return self._settings.resolved_weights_path
+
+    @property
+    def _confidence_threshold(self) -> float:
+        return self._settings.yolov26_confidence_threshold
+
+    @property
+    def _iou_threshold(self) -> float:
+        return self._settings.yolov26_iou_threshold
+
+    @property
+    def _image_size(self) -> int:
+        return self._settings.yolov26_image_size
+
+    @property
+    def _max_detections(self) -> int:
+        return self._settings.yolov26_max_detections
+
+    @property
+    def _device(self) -> str:
+        return self._settings.yolov26_device
+
+    @property
+    def _preload_on_startup(self) -> bool:
+        return self._settings.yolov26_preload_on_startup
+
     def _serialize_detections(self, results: Any) -> list[DetectionObject]:
         detections: list[DetectionObject] = []
 
@@ -152,7 +184,7 @@ class YoloV26Detector:
             for box in boxes:
                 coordinates = self._as_list(self._first(getattr(box, "xyxy", [])))
                 if len(coordinates) != 4:
-                    raise InferenceError("YOLOv26 returned an invalid bounding box.")
+                    raise InferenceError(f"{self._model_name} returned an invalid bounding box.")
 
                 class_id = int(self._as_scalar(getattr(box, "cls", 0)))
                 confidence = round(float(self._as_scalar(getattr(box, "conf", 0.0))), 4)
@@ -215,7 +247,21 @@ class YoloV26Detector:
         if hasattr(current, "tolist"):
             current = current.tolist()
 
-        if isinstance(current, (list, tuple)):
-            return [float(item) for item in current]
+        while isinstance(current, (list, tuple)) and len(current) == 1:
+            nested = current[0]
+            if hasattr(nested, "tolist"):
+                nested = nested.tolist()
+            if isinstance(nested, (list, tuple)):
+                current = nested
+                continue
+            break
 
-        raise InferenceError("YOLOv26 returned a non-serializable bounding box.")
+        if isinstance(current, (list, tuple)):
+            try:
+                return [float(item) for item in current]
+            except (TypeError, ValueError) as exc:
+                raise InferenceError(
+                    f"{cls.__name__} returned a non-serializable bounding box."
+                ) from exc
+
+        raise InferenceError(f"{cls.__name__} returned a non-serializable bounding box.")

@@ -26,6 +26,14 @@ class FakeBox:
         self.cls = [class_id]
 
 
+class FakeTensor:
+    def __init__(self, values) -> None:
+        self._values = values
+
+    def tolist(self):
+        return self._values
+
+
 class FakeResult:
     def __init__(self) -> None:
         self.names = {0: "bottle", 1: "banana"}
@@ -94,3 +102,9 @@ def test_detector_requires_existing_weights(tmp_path: Path) -> None:
             content_type="image/png",
             image_bytes=make_png_bytes(),
         )
+
+
+def test_detector_flattens_nested_xyxy_payloads() -> None:
+    flattened = YoloV26Detector._as_list(FakeTensor([[10.0, 20.0, 30.0, 40.0]]))
+
+    assert flattened == [10.0, 20.0, 30.0, 40.0]

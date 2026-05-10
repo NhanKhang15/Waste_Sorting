@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 
@@ -34,7 +34,25 @@ class Settings(BaseSettings):
     yolov26_device: str = "cpu"
     yolov26_preload_on_startup: bool = False
 
-    @field_validator("yolov26_confidence_threshold", "yolov26_iou_threshold")
+    waste_detector_model_name: str = "waste_yolo26s_taco"
+    waste_detector_weights_path: Path = Path("runs/waste_detector/waste_yolo26s_taco/weights/best.pt")
+    waste_detector_confidence_threshold: float = 0.25
+    waste_detector_iou_threshold: float = 0.45
+    waste_detector_image_size: PositiveInt = 640
+    waste_detector_max_detections: PositiveInt = 100
+    waste_detector_device: str = "cpu"
+    waste_detector_preload_on_startup: bool = False
+
+    waste_hybrid_primary_min_confidence: float = 0.45
+    waste_hybrid_primary_min_matches: PositiveInt = 1
+
+    @field_validator(
+        "yolov26_confidence_threshold",
+        "yolov26_iou_threshold",
+        "waste_detector_confidence_threshold",
+        "waste_detector_iou_threshold",
+        "waste_hybrid_primary_min_confidence",
+    )
     @classmethod
     def validate_thresholds(cls, value: float) -> float:
         if not 0 < value <= 1:
@@ -46,6 +64,12 @@ class Settings(BaseSettings):
         if self.yolov26_weights_path.is_absolute():
             return self.yolov26_weights_path
         return BACKEND_DIR / self.yolov26_weights_path
+
+    @property
+    def resolved_waste_detector_weights_path(self) -> Path:
+        if self.waste_detector_weights_path.is_absolute():
+            return self.waste_detector_weights_path
+        return BACKEND_DIR / self.waste_detector_weights_path
 
     @property
     def allowed_image_type_list(self) -> list[str]:

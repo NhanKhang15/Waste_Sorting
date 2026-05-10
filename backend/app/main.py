@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
@@ -6,17 +6,23 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.deps import get_detector, get_settings
+from app.api.deps import get_detector, get_settings, get_waste_detector
 from app.api.router import api_router
-from app.core.errors import InferenceError, InvalidImageError, ModelNotConfiguredError
+from app.core.errors import (
+    InferenceError,
+    InvalidImageError,
+    InvalidWasteQueryError,
+    ModelNotConfiguredError,
+)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     settings = get_settings()
     if settings.yolov26_preload_on_startup:
-        detector = get_detector()
-        detector.preload()
+        get_detector().preload()
+    if settings.waste_detector_preload_on_startup:
+        get_waste_detector().preload()
     yield
 
 
@@ -58,6 +64,13 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(InferenceError)
     async def handle_inference_error(_: Request, exc: InferenceError) -> JSONResponse:
         return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+    @app.exception_handler(InvalidWasteQueryError)
+    async def handle_invalid_waste_query(
+        _: Request,
+        exc: InvalidWasteQueryError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 app = create_application()
