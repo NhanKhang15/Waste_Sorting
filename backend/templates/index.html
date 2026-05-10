@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Waste Finder YOLO26</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero-card">
+        <div class="hero-copy">
+          <p class="eyebrow">YOLO26 COCO 80 + Python Rules</p>
+          <h1>Find waste groups from fixed keywords</h1>
+          <p class="subcopy">
+            This version uses YOLO COCO object detection first, then a Python class maps the
+            detected keywords into <strong>organic</strong>, <strong>recyclable</strong>, or
+            <strong>inorganic</strong>.
+          </p>
+          <div class="hint-list">
+            <span>find me organic waste</span>
+            <span>find me recyclable waste</span>
+            <span>find me inorganic waste</span>
+          </div>
+        </div>
+
+        <form id="finder-form" class="finder-form">
+          <label class="field">
+            <span>Query</span>
+            <input id="query" name="query" type="text" value="find me recyclable waste" required />
+          </label>
+
+          <label class="field file-field">
+            <span>Image</span>
+            <input id="image" name="image" type="file" accept="image/png, image/jpeg, image/webp" required />
+          </label>
+
+          <button id="submit-button" type="submit">Scan Image</button>
+          <p class="help-note">
+            Example mapping:
+            <strong>bottle</strong> becomes recyclable,
+            <strong>banana</strong> becomes organic,
+            <strong>laptop</strong> becomes inorganic.
+          </p>
+        </form>
+      </section>
+
+      <section class="results-shell">
+        <div class="result-summary">
+          <div>
+            <p class="summary-label">Status</p>
+            <h2 id="status-text">No result yet</h2>
+          </div>
+          <div class="summary-meta">
+            <span id="summary-count">0 objects</span>
+            <span id="summary-mode">Waiting</span>
+          </div>
+        </div>
+
+        <div id="feedback" class="feedback">Upload an image and submit one of the three supported queries.</div>
+
+        <div class="preview-grid">
+          <article class="panel">
+            <div class="panel-title">Filtered detections</div>
+            <img id="annotated-preview" alt="Annotated result" />
+          </article>
+
+          <article class="panel">
+            <div class="panel-title">Cropped matches</div>
+            <div id="crop-grid" class="crop-grid"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <template id="crop-card-template">
+      <article class="crop-card">
+        <img alt="Crop result" />
+        <div class="crop-content">
+          <strong class="crop-title"></strong>
+          <span class="crop-confidence"></span>
+        </div>
+      </article>
+    </template>
+
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  </body>
+</html>
