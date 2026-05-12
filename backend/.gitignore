@@ -37,13 +37,13 @@ dist/
 *.ckpt
 
 # Training data & outputs (too large for git)
-datasets/
-training_image/
-training_labels/
-runs/
-logs/
-wandb/
-mlruns/
+# datasets/
+# training_image/
+# training_labels/
+# runs/
+# logs/
+# wandb/
+# mlruns/
 
 # IDE / OS
 .vscode/

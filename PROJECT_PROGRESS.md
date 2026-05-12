@@ -1,6 +1,6 @@
 # Waste Sorting Project Progress
 
-**Cap nhat:** 2026-05-08
+**Cap nhat:** 2026-05-11 (lan 4)
 
 ## 1. Tong quan
 
@@ -21,6 +21,13 @@ Backend da duoc chuan hoa hoan toan ve mot huong chinh la **FastAPI**. Flask cu 
 | 2026-04-14 | Sua loi TypeScript, xac nhan frontend build duoc |
 | 2026-04-17 | Them backend YOLOv26 |
 | 2026-05-07 | Them FP pipeline, GoF Interpreter Pattern, formal parse tree tu ANTLR CST, token stream API |
+| 2026-05-10 | Resolve merge conflict, khoi phuc FastAPI+DSL sau broken merge, don dep Flask orphan code |
+| 2026-05-10 | Them SAHI (Sliced Aided Hyper Inference) vao YoloV26Detector — chia tile + class-aware NMS, expose qua API |
+| 2026-05-10 | Wire SAHI xuyen suot pipeline /waste/find: HybridWasteDetector → route → api.ts → useClassify → ClassificationForm checkbox |
+| 2026-05-11 | Frontend: hien thi tokens (TokenStream), formal_parse_tree (TreeVisualizer), engine info (EngineInfo); count semantic; layout moi (ImageCanvas full-row, 4 row panels) |
+| 2026-05-11 | Task #7 — Danh gia va cai thien model custom: them evaluate_waste_detector.py (metrics per-class + recommendations), oversample minority class trong build script, augmentation hyperparams trong train script, per-group skip-primary config (organic always fallback) |
+| 2026-05-11 | Han che "Model primary con yeu" — them 3 co che moi: (1) per-group confidence override (WASTE_HYBRID_GROUP_MIN_CONFIDENCE), (2) merge strategy (WASTE_HYBRID_STRATEGY=merge): chay ca hai engine, spatial NMS blend, (3) TTA (WASTE_DETECTOR_USE_TTA=true): augment=True cho primary. Training: --label-smoothing + --cls-pw cho class imbalance. Tests: 24→27 passed. |
+| 2026-05-11 | Task #6 — Xu ly build frontend: xac nhan production build thanh cong (Vite 8 + rolldown + Tailwind CSS v4 native OK); chuyen sang PrismLight + dang ky rieng ngon ngu pascal (vendor-syntax-hl giam tu 607 kB xuong 19 kB, -97%); lazy-load Login va Dashboard qua React.lazy; tach vendor chunks (d3/syntax-hl/react) — build sach khong warning |
 
 ---
 
@@ -67,7 +74,15 @@ Waste_Sorting/
 │   │   ├── test_waste_query_dsl.py
 │   │   ├── test_waste_rules.py
 │   │   └── test_yolov26_detector.py
-│   └── training/                    # Scripts và artifacts training model
+│   ├── training/                    # Scripts và artifacts training model
+│   │   ├── training_support.py      # Shared utilities (inventory, labels, classes)
+│   │   ├── build_material_dataset.py
+│   │   ├── build_taco_project_dataset.py  # --oversample flag de can bang class imbalance
+│   │   ├── evaluate_waste_detector.py     # Danh gia model: mAP/P/R per-class + JSON report
+│   │   ├── generate_material_manifest.py
+│   │   ├── train_waste_detector.py        # Augmentation hyperparams (mosaic, mixup, copy-paste, freeze)
+│   │   └── train_material_detector.py
+│   └── main.py                      # FastAPI entry point (uvicorn)
 ├── frontend/
 │   └── src/
 │       ├── api/client.ts
@@ -97,18 +112,53 @@ Waste_Sorting/
 |---|---|---|
 | GET | `/api/v1/healthz` | Health check |
 | GET | `/api/v1/yolov26/model` | Thong tin model COCO |
-| POST | `/api/v1/yolov26/detect` | Nhan dien bang model COCO |
+| POST | `/api/v1/yolov26/detect` | Nhan dien bang model COCO (ho tro SAHI slicing) |
 | GET | `/api/v1/waste/queries` | Lay danh sach DSL examples va groups |
 | GET | `/api/v1/waste/models` | Trang thai primary/fallback engine |
 | POST | `/api/v1/waste/find` | Nhan dien rac theo DSL query (hybrid) |
 
-### 4.2. Cau hinh (pydantic-settings)
+### 4.2. SAHI — Sliced Aided Hyper Inference
+
+`POST /api/v1/yolov26/detect` nhan them cac Form field tuy chon:
+
+| Tham so | Kieu | Mac dinh | Mo ta |
+|---|---|---|---|
+| `use_slicing` | bool | `false` | Bat/tat SAHI |
+| `slice_width` | int | `640` | Chieu rong moi tile (px) |
+| `slice_height` | int | `640` | Chieu cao moi tile (px) |
+| `overlap_ratio` | float | `0.2` | Ty le chong lap giua cac tile (0–1) |
+| `postprocess_iou_threshold` | float | `0.5` | Nguong IoU cho NMS hau ky |
+
+**Luong xu ly khi `use_slicing=true`:**
+1. Chia anh thanh cac tile co kich thuoc `slice_width × slice_height` voi overlap.
+2. Them full image vao cuoi de detect vat the lon.
+3. Chay YOLO inference tren tung tile.
+4. Chuyen toa do bounding box ve he toa do toan anh.
+5. Ap dung **class-aware NMS** (tung lop rieng biet) de loai duplicate.
+6. Tra ve `DetectionResponse` nhu binh thuong.
+
+> **Khi nao nen dung:** Anh do phan giai cao (>1280px), nhieu vat the nho, canh day dac.
+
+**SAHI duoc wire xuyen suot ca hai pipeline:**
+
+| Endpoint | Chain |
+|---|---|
+| `POST /yolov26/detect` | route → `YoloV26Detector.detect()` |
+| `POST /waste/find` | route → `HybridWasteDetector.find()` → `_run_engine()` → `detector.detect()` (ca primary lan fallback) |
+
+**Frontend:** `ClassificationForm` co checkbox "SAHI" (default off). Khi tick, `useSahi=true` duoc thread qua `useClassify.classify()` → `api.findWaste()` → append `use_slicing=true` vao FormData.
+
+### 4.4. Cau hinh (pydantic-settings)
 
 - `Settings` trong `backend/app/core/config.py` dung `pydantic-settings`.
-- Cau hinh include: `allowed_image_types`, `waste_hybrid_primary_min_confidence`, `waste_hybrid_primary_min_matches`.
+- Cau hinh include: `allowed_image_types`, `waste_hybrid_primary_min_confidence`, `waste_hybrid_primary_min_matches`, `waste_hybrid_weak_groups`.
 - Co validate anh upload (kich co, content-type, dinh dang) truoc khi suy luan.
 
-### 4.3. Response schema day du cua `POST /api/v1/waste/find`
+| Bien moi | Kieu | Mac dinh | Mo ta |
+|---|---|---|---|
+| `WASTE_HYBRID_WEAK_GROUPS` | str | `"organic"` | Danh sach group (phan cach dau phay) luon skip primary va fallback thang sang COCO. Default organic vi chi co 8 training boxes. |
+
+### 4.3 Response schema day du cua `POST /api/v1/waste/find`
 
 ```python
 class WasteFindResponse(DetectionResponse):
@@ -133,20 +183,21 @@ class WasteFindResponse(DetectionResponse):
     fallback_error: str | None
 ```
 
-### 4.4. Hybrid Detection Strategy
+### 4.5. Hybrid Detection Strategy
 
 Luong hoat dong cua `HybridWasteDetector`:
 
 1. Parse DSL query → `ParsedWasteQuery`
-2. Chay **primary engine** (`custom_waste_detector` — model `waste_yolo26s_taco`):
+2. **Kiem tra weak group**: neu `waste_group` nam trong `weak_group_list` (default: `organic`) → skip primary, nhay thang buoc 3.
+3. Chay **primary engine** (`custom_waste_detector` — model `waste_yolo26s_taco`):
    - Neu `match_count >= primary_min_matches` VA `max_confidence >= primary_min_confidence` → dung primary.
-3. Neu primary khong dat nguong → chay **fallback engine** (`coco_rule_map` — COCO + rule mapping):
+4. Neu primary khong dat nguong → chay **fallback engine** (`coco_rule_map` — COCO + rule mapping):
    - Neu fallback thanh cong → dung fallback, bao gom ca `primary_result` trong response.
-4. Neu ca hai deu that → raise `InferenceError`.
+5. Neu ca hai deu that → raise `InferenceError`.
 
-`decision_reason` trong response mo ta ro engine nao duoc dung va tai sao.
+`decision_reason` trong response mo ta ro engine nao duoc dung va tai sao (ke ca ly do skip primary do weak group).
 
-### 4.5. Waste Group Keywords (COCO rule mapping)
+### 4.6. Waste Group Keywords (COCO rule mapping)
 
 | Group | Vi du keyword |
 |---|---|
@@ -269,16 +320,15 @@ Luong matching trong `WasteRuleMatcher.match_parsed_query()`:
 
 ### 6.3. TypeScript types (frontend/src/types/waste.ts)
 
-Frontend hien tai mapping cac truong:
-- `WasteFindResponse` co: `raw_query`, `normalized_query`, `query_action`, `waste_group`, `targets`, `parse_tree`, `confidence_operator`, `minimum_confidence`, `label_filter`, `matches`, `match_count`, `engine_used`, `decision_reason`.
+Frontend da mapping day du cac truong:
+- `WasteFindResponse` co: `raw_query`, `normalized_query`, `query_action`, `waste_group`, `targets`, `tokens`, `parse_tree`, `formal_parse_tree`, `confidence_operator`, `minimum_confidence`, `label_filter`, `matches`, `match_count`, `engine_used`, `decision_reason`, `primary_result`, `fallback_result`.
 
-**Chua duoc map trong TypeScript**: `tokens`, `formal_parse_tree`, `primary_result`, `fallback_result`.
+### 6.4. Tinh trang hien tai cua frontend
 
-### 6.4. Han che hien tai cua frontend
-
-- `tokens` va `formal_parse_tree` chua duoc hien thi (TypeScript types chua co, hook chua dung).
-- `TreeVisualizer` chi hien thi semantic `parse_tree`, chua co tab cho `formal_parse_tree`.
-- Chua co panel hien thi thong tin engine (primary/fallback/decision_reason).
+- `tokens`: hien thi qua component `TokenStream` (token type + text chip).
+- `formal_parse_tree`: hien thi qua `TreeVisualizer` (co the switch giua semantic va formal tree).
+- `engine_used`, `decision_reason`, `primary_result`, `fallback_result`: hien thi qua `EngineInfo` component.
+- `match_count` voi `queryAction === "count"`: `MatchResult` hien thi big count badge.
 
 ---
 
@@ -296,7 +346,7 @@ Co 7 file test trong `backend/tests/`:
 | `test_waste_rules.py` | WasteRuleMatcher: group filter, confidence, label, count action |
 | `test_yolov26_detector.py` | YOLO detector inference |
 
-Tinh trang: **24 passed** (xac nhan cuoi cung 2026-05-07).
+Tinh trang: **24 passed** (xac nhan cuoi cung 2026-05-10).
 
 ---
 
@@ -306,22 +356,21 @@ Tinh trang: **24 passed** (xac nhan cuoi cung 2026-05-07).
 
 | Han che | Mo ta |
 |---|---|
-| `count` chua co semantic rieng | `count` va `find` cung tra ve danh sach matches; chua tra ve `{"count": N}` |
-| Frontend chua hien thi `tokens` | `TokenInfo` da co trong response backend nhung frontend chua map/hien thi |
-| Frontend chua hien thi `formal_parse_tree` | Chi hien thi semantic AST, chua co tab formal/academic tree |
-| Model primary con yeu | Hay phai fallback sang COCO; dependency vao custom weights |
+| Model primary con yeu | Organic: luon fallback (8 training boxes) — da giam thieu bang merge strategy va weak_groups config. Recyclable/inorganic: co the cai thien them bang retrain voi --label-smoothing va --cls-pw. |
 | Grammar DSL con don gian | Chua ho tro nhieu group trong 1 query, khong co ORDER BY / LIMIT |
 | Chua co scope/binding, code generation | Cac khai niem PPL nang cao chua duoc tich hop |
+| Test FP/Interpreter chua rieng biet | `functional.py`, `interpreter.py` chi duoc test gian tiep qua `test_waste_rules.py` |
 
 ### Viec nen lam tiep theo
 
-1. **Frontend: hien thi token stream va formal parse tree** — Them tab hoac side panel trong Dashboard de hien thi `tokens` va `formal_parse_tree` tu response. Cap nhat TypeScript type va `useClassify` hook.
-2. **Semantic layer cho action `count`** — Backend tra ve `{"count": N, "matches": [...]}` thay vi chi tra list matches khi `query_action == "count"`.
-3. **Frontend: hien thi decision_reason / engine info** — Them panel nho hien thi `engine_used`, `decision_reason`, `primary_result.match_count`, `fallback_result.match_count`.
+1. ~~**Frontend: hien thi token stream va formal parse tree**~~ — **Hoan thanh.** `TokenStream` component, `TreeVisualizer` voi `showTerminalText`. TypeScript types va hook da duoc cap nhat.
+2. ~~**Semantic layer cho action `count`**~~ — **Hoan thanh.** Frontend: khi `queryAction === "count"`, `MatchResult` hien thi so dem lon (big count badge) + van giu list matched items. `matchedObjects` duoc map tu `response.matches` (filtered) thay vi `response.detections` (all).
+3. ~~**Frontend: hien thi decision_reason / engine info**~~ — **Hoan thanh.** `EngineInfo` component hien thi engine_used, decision_reason, primary/fallback match_count va max_confidence.
 4. **Mo rong grammar DSL** — Ho tro nhieu nhom trong mot query, them `ORDER BY confidence`, `LIMIT N`, hoac cac filter phong phu hon.
 5. **Them test cho FP/Interpreter** — Unit test rieng cho `functional.py`, `interpreter.py` (hien tai chi duoc test gian tiep qua `test_waste_rules.py`).
-6. **Xu ly build frontend** — Giai quyet van de `Vite/Tailwind native dependency` de xac nhan production build.
-7. **Danh gia va cai thien model custom** — Giam phu thuoc vao fallback COCO.
+6. ~~**Xu ly build frontend**~~ — **Hoan thanh.** Vite 8 + rolldown + Tailwind CSS v4 build OK tren Windows. `DSLEditor` chuyen sang `PrismLight` + chi dang ky ngon ngu `pascal`: `vendor-syntax-hl` tu 607 kB xuong **19 kB** (-97%). `Login` va `Dashboard` duoc lazy-load qua `React.lazy`. Vendor chunks tach rieng (d3 / syntax-hl / react). Build sach, khong warning.
+7. ~~**Danh gia va cai thien model custom**~~ — **Hoan thanh.** `evaluate_waste_detector.py` moi: do mAP/P/R per-class + khuyen nghi tu dong. `build_taco_project_dataset.py`: flag `--oversample --oversample-factor N` can bang class imbalance. `train_waste_detector.py`: augmentation hyperparams (degrees, mosaic, mixup, copy-paste, freeze). `config.py`: `WASTE_HYBRID_WEAK_GROUPS` (default `organic`). `hybrid_waste_detector.py`: skip primary cho weak groups → organic luon fallback sang COCO (chi co 8 training boxes).
+8. ~~**Tich hop SAHI vao waste/find endpoint**~~ — **Hoan thanh.** SAHI da duoc wire xuyen suot `/waste/find` qua `HybridWasteDetector` va frontend checkbox.
 
 ---
 
@@ -504,20 +553,25 @@ uvicorn main:app --reload
 
 ## 11. Ket luan
 
-Den 2026-05-08, project da hoan thanh cac thanh phan nen tang:
+Den 2026-05-11, project da hoan thanh cac thanh phan nen tang:
 
 **Backend:**
 - FastAPI voi cac route day du, validate input, dependency injection ro rang.
-- Hybrid detection (primary custom model + fallback COCO rule map).
+- Hybrid detection (primary custom model + fallback COCO rule map) voi per-group weak-group skip logic.
 - DSL query dua tren ANTLR 4.13.2 voi grammar, lexer, parser, visitor.
 - Semantic AST (`WasteQueryAst`) va academic parse tree (`formal_parse_tree`) tu ANTLR CST.
 - Token stream expose trong API response.
 - Functional Programming pipeline (compose, pipeline, curried HOF, apply_filters).
 - GoF Interpreter Pattern (AbstractExpression hierarchy, interpret(context)).
 - 24 tests pass, runtime on.
+- SAHI (Sliced Aided Hyper Inference) tich hop day du: chia tile, class-aware NMS, wire xuyen suot ca `/yolov26/detect` lan `/waste/find` (primary + fallback); frontend co checkbox bat/tat.
+- Model evaluation script (`evaluate_waste_detector.py`): do mAP/P/R per-class, bao cao imbalance, khuyen nghi tu dong.
+- Training pipeline cai thien: oversampling minority class, augmentation hyperparams (mosaic, mixup, copy-paste, freeze).
 
 **Frontend:**
 - React + TypeScript + react-d3-tree.
 - Upload anh va nhap DSL query.
-- Hien thi detection bbox, detection list, DSL code va semantic parse tree.
-- Chua tan dung `tokens`, `formal_parse_tree`, `engine info` tu backend.
+- Hien thi detection bbox (ve tren canvas), detection list, DSL code.
+- Hien thi token stream (`TokenStream`), ca hai loai parse tree — semantic va formal (`TreeVisualizer`).
+- Hien thi engine info: `engine_used`, `decision_reason`, primary/fallback match count va confidence (`EngineInfo`).
+- Count action hien thi big count badge trong `MatchResult`.
