@@ -45,6 +45,25 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Keep images without mapped boxes as background images.",
     )
+    parser.add_argument(
+        "--oversample",
+        action="store_true",
+        help=(
+            "Oversample minority-class images in the train split by duplicating files. "
+            "YOLO's built-in augmentation pipeline applies random transforms to duplicates, "
+            "so they are not identical at training time."
+        ),
+    )
+    parser.add_argument(
+        "--oversample-factor",
+        type=int,
+        default=10,
+        metavar="N",
+        help=(
+            "Maximum duplication factor for the smallest class. "
+            "Target count = min(max_class_count, minority_count × N). Default: 10."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -183,6 +202,7 @@ def main() -> None:
     manifest_rows = []
     image_split_counts = Counter()
     target_image_counts = Counter()
+    class_train_files: dict[str, list[tuple[Path, Path]]] = defaultdict(list)
 
     for image_meta in candidate_images:
         image_id = image_meta["id"]
@@ -207,6 +227,8 @@ def main() -> None:
 
         for class_name in {box["class_name"] for box in annotations_by_image.get(image_id, [])}:
             target_image_counts[class_name] += 1
+            if split == "train":
+                class_train_files[class_name].append((destination_image, destination_label))
 
         manifest_rows.append(
             {
@@ -244,6 +266,30 @@ def main() -> None:
     args.summary_output.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
     write_yaml(args.output, class_names, args.yaml_output)
+
+    if args.oversample and class_train_files:
+        max_count = max(len(files) for files in class_train_files.values())
+        print("Oversampling minority classes in train split:")
+        for cls_name, train_files in sorted(class_train_files.items()):
+            current = len(train_files)
+            target = min(max_count, current * args.oversample_factor)
+            if target <= current:
+                print(f"  '{cls_name}': {current} images — already at/above target, skipping.")
+                continue
+            needed = target - current
+            cycle = list(train_files)
+            added = 0
+            while added < needed:
+                src_img, src_lbl = cycle[added % len(cycle)]
+                generation = added // len(cycle) + 1
+                new_stem = f"{src_img.stem}_ovs{generation:03d}_{added % len(cycle):03d}"
+                dst_img = src_img.parent / f"{new_stem}{src_img.suffix}"
+                dst_lbl = src_lbl.parent / f"{new_stem}.txt"
+                if not dst_img.exists():
+                    shutil.copy2(src_img, dst_img)
+                    shutil.copy2(src_lbl, dst_lbl)
+                added += 1
+            print(f"  '{cls_name}': {current} → {current + added} train images (+{added} copies).")
 
     print(f"Built remapped TACO dataset at: {args.output}")
     print(f"Dataset YAML: {args.yaml_output}")

@@ -26,5 +26,5 @@
     "test": 74,
     "train": 1185
   },
-  "copy_mode": "hardlink"
+  "copy_mode": "copy"
 }

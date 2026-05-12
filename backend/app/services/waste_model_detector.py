@@ -35,3 +35,7 @@ class WasteModelDetector(YoloV26Detector):
     @property
     def _preload_on_startup(self) -> bool:
         return self._settings.waste_detector_preload_on_startup
+
+    @property
+    def _augment(self) -> bool:
+        return self._settings.detector_use_tta

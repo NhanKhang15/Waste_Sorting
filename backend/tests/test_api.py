@@ -90,6 +90,10 @@ class FakeHybridDetector:
         filename: str | None,
         content_type: str | None,
         image_bytes: bytes,
+        use_slicing: bool = False,
+        slice_width: int = 640,
+        slice_height: int = 640,
+        overlap_ratio: float = 0.2,
     ) -> WasteFindResponse:
         result_model = self.get_models_status().primary_model
         image = ImageMetadata(

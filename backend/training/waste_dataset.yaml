@@ -1,4 +1,4 @@
-path: E:/testYolo/datasets/waste_sorting_taco
+path: datasets/waste_sorting_taco
 train: images/train
 val: images/val
 test: images/test

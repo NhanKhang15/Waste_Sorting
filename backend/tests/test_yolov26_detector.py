@@ -64,6 +64,7 @@ def test_detect_serializes_ultralytics_style_output(tmp_path: Path) -> None:
         yolov26_confidence_threshold=0.2,
         yolov26_iou_threshold=0.4,
         yolov26_image_size=640,
+        yolov26_device="cpu",
     )
     detector = YoloV26Detector(
         settings=settings,

@@ -35,6 +35,10 @@ def read_waste_models(
 async def find_waste_matches(
     query: str = Form(...),
     file: UploadFile = File(...),
+    use_slicing: bool = Form(False),
+    slice_width: int = Form(640),
+    slice_height: int = Form(640),
+    overlap_ratio: float = Form(0.2),
     hybrid_detector: HybridWasteDetector = Depends(get_hybrid_waste_detector),
 ) -> WasteFindResponse:
     image_bytes = await file.read()
@@ -44,6 +48,10 @@ async def find_waste_matches(
             filename=file.filename,
             content_type=file.content_type,
             image_bytes=image_bytes,
+            use_slicing=use_slicing,
+            slice_width=slice_width,
+            slice_height=slice_height,
+            overlap_ratio=overlap_ratio,
         )
     finally:
         await file.close()

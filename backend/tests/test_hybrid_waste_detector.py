@@ -32,7 +32,18 @@ class FakeDetector:
     def get_model_status(self) -> ModelStatusResponse:
         return self._response.model
 
-    def detect(self, *, filename: str | None, content_type: str | None, image_bytes: bytes) -> DetectionResponse:
+    def detect(
+        self,
+        *,
+        filename: str | None,
+        content_type: str | None,
+        image_bytes: bytes,
+        use_slicing: bool = False,
+        slice_width: int = 640,
+        slice_height: int = 640,
+        overlap_ratio: float = 0.2,
+        postprocess_iou_threshold: float = 0.5,
+    ) -> DetectionResponse:
         return self._response
 
 
@@ -90,7 +101,8 @@ def make_response(labels: list[tuple[str, float]]) -> DetectionResponse:
 def test_hybrid_uses_primary_when_match_is_confident() -> None:
     settings = Settings(
         allowed_image_types="image/png",
-        waste_hybrid_primary_min_confidence=0.45,
+        hybrid_strategy="fallback",
+        hybrid_primary_min_confidence=0.45,
     )
     hybrid = HybridWasteDetector(
         settings=settings,
@@ -116,7 +128,8 @@ def test_hybrid_uses_primary_when_match_is_confident() -> None:
 def test_hybrid_falls_back_when_primary_confidence_is_too_low() -> None:
     settings = Settings(
         allowed_image_types="image/png",
-        waste_hybrid_primary_min_confidence=0.45,
+        hybrid_strategy="fallback",
+        hybrid_primary_min_confidence=0.45,
     )
     hybrid = HybridWasteDetector(
         settings=settings,
@@ -137,3 +150,91 @@ def test_hybrid_falls_back_when_primary_confidence_is_too_low() -> None:
     assert response.fallback_result is not None
     assert response.matches[0].label == "bottle"
     assert "confidence threshold" in response.decision_reason
+
+
+def test_hybrid_uses_per_group_confidence_override() -> None:
+    """A per-group override of 0.30 should accept a primary result with conf=0.35."""
+    settings = Settings(
+        allowed_image_types="image/png",
+        hybrid_strategy="fallback",
+        hybrid_primary_min_confidence=0.70,  # global too high
+        hybrid_group_min_confidence="recyclable=0.30",
+    )
+    hybrid = HybridWasteDetector(
+        settings=settings,
+        primary_detector=FakeDetector(make_response([("recyclable", 0.35)])),
+        fallback_detector=FakeDetector(make_response([("bottle", 0.91)])),
+        matcher=WasteRuleMatcher(),
+    )
+
+    response = hybrid.find(
+        query="find me recyclable waste",
+        filename="sample.png",
+        content_type="image/png",
+        image_bytes=make_png_bytes(),
+    )
+
+    assert response.engine_used == "custom_waste_detector"
+    assert response.matches[0].label == "recyclable"
+
+
+def test_hybrid_merge_strategy_combines_both_engines() -> None:
+    """Merge strategy should produce engine_used='merged' with detections from both engines."""
+    settings = Settings(
+        allowed_image_types="image/png",
+        hybrid_strategy="merge",
+    )
+    hybrid = HybridWasteDetector(
+        settings=settings,
+        primary_detector=FakeDetector(make_response([("recyclable", 0.55)])),
+        fallback_detector=FakeDetector(make_response([("bottle", 0.80)])),
+        matcher=WasteRuleMatcher(),
+    )
+
+    response = hybrid.find(
+        query="find me recyclable waste",
+        filename="sample.png",
+        content_type="image/png",
+        image_bytes=make_png_bytes(),
+    )
+
+    assert response.engine_used == "merged"
+    assert response.primary_result is not None
+    assert response.fallback_result is not None
+    assert "Merge strategy" in response.decision_reason
+    # Both detections overlap the same bbox region → NMS keeps only the higher-conf one.
+    assert response.match_count >= 1
+
+
+def test_hybrid_merge_strategy_falls_back_when_primary_unavailable() -> None:
+    """Merge mode with a broken primary detector should still succeed using fallback."""
+    from app.core.errors import ModelNotConfiguredError
+
+    class BrokenDetector:
+        def get_model_status(self) -> ModelStatusResponse:
+            return make_response([]).model
+
+        def detect(self, *, filename, content_type, image_bytes, **kwargs) -> DetectionResponse:
+            raise ModelNotConfiguredError("no weights")
+
+    settings = Settings(
+        allowed_image_types="image/png",
+        hybrid_strategy="merge",
+    )
+    hybrid = HybridWasteDetector(
+        settings=settings,
+        primary_detector=BrokenDetector(),  # type: ignore[arg-type]
+        fallback_detector=FakeDetector(make_response([("bottle", 0.80)])),
+        matcher=WasteRuleMatcher(),
+    )
+
+    response = hybrid.find(
+        query="find me recyclable waste",
+        filename="sample.png",
+        content_type="image/png",
+        image_bytes=make_png_bytes(),
+    )
+
+    assert response.engine_used == "coco_rule_map"
+    assert response.match_count == 1
+    assert response.matches[0].label == "bottle"
