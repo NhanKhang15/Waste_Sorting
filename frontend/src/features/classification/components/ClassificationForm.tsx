@@ -2,13 +2,14 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 
 interface Props {
-  onScan: (file: File, query: string) => Promise<void> | void;
+  onScan: (file: File, query: string, useSahi: boolean) => Promise<void> | void;
   loading: boolean;
 }
 
 const ClassificationForm = ({ onScan, loading }: Props) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [query, setQuery] = useState("find me recyclable waste");
+  const [useSahi, setUseSahi] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -17,7 +18,7 @@ const ClassificationForm = ({ onScan, loading }: Props) => {
       return;
     }
 
-    await onScan(selectedFile, query.trim());
+    await onScan(selectedFile, query.trim(), useSahi);
   };
 
   return (
@@ -52,11 +53,36 @@ const ClassificationForm = ({ onScan, loading }: Props) => {
           placeholder='find recyclable waste where confidence >= 0.8 and label = bottle'
         />
         <p className="mt-2 text-xs text-on-surface-variant">
-          Examples: <code>find me recyclable waste</code>,{" "}
-          <code>count organic waste where confidence &gt;= 0.6</code>,{" "}
-          <code>find recyclable waste where label = bottle</code>.
+          Click to use:{" "}
+          <code
+            className="cursor-pointer hover:text-primary hover:underline transition-colors"
+            onClick={() => setQuery("find me recyclable waste")}
+          >find me recyclable waste</code>,{" "}
+          <code
+            className="cursor-pointer hover:text-primary hover:underline transition-colors"
+            onClick={() => setQuery("count organic waste where confidence >= 0.6")}
+          >count organic waste where confidence &gt;= 0.6</code>,{" "}
+          <code
+            className="cursor-pointer hover:text-primary hover:underline transition-colors"
+            onClick={() => setQuery("find recyclable waste where label = bottle")}
+          >find recyclable waste where label = bottle</code>.
         </p>
       </div>
+
+      <label className="flex items-center gap-3 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={useSahi}
+          onChange={(e) => setUseSahi(e.target.checked)}
+          className="w-4 h-4 accent-primary"
+        />
+        <span className="text-sm font-medium">
+          SAHI{" "}
+          <span className="text-xs font-normal text-on-surface-variant">
+            — slice image for better detection of small objects in dense scenes
+          </span>
+        </span>
+      </label>
 
       <button
         type="submit"

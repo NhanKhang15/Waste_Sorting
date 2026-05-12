@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../../api/client";
 import type {
   DetectionObjectResponse,
+  TokenInfoResponse,
+  WasteEngineResultResponse,
   WasteFindResponse,
   WasteQueryTreeNodeResponse,
 } from "../../../types/waste";
@@ -26,9 +28,17 @@ export interface DetectedObject {
 export interface UseClassifyData {
   imageUrl: string;
   detectedObjects: DetectedObject[];
+  matchedObjects: DetectedObject[];
   dslCode: string;
   parseTree: WasteQueryTreeNodeResponse;
+  formalParseTree: WasteQueryTreeNodeResponse;
+  tokens: TokenInfoResponse[];
   result: string;
+  queryAction: string;
+  engineUsed: string;
+  decisionReason: string;
+  primaryResult: WasteEngineResultResponse | null;
+  fallbackResult: WasteEngineResultResponse | null;
 }
 
 const clampPercentage = (value: number) => Math.max(0, Math.min(100, value));
@@ -64,24 +74,28 @@ const mapDetectionsToDetectedObjects = (
 const buildResultSummary = (response: WasteFindResponse) => {
   const targetGroup = response.waste_group;
   const action = response.query_action;
-  const engine = response.engine_used;
+  const engine = response.engine_used === "custom_waste_detector" ? "custom model" : "COCO fallback";
   const count = response.match_count;
 
   if (count === 0) {
-    return `DSL query "${response.normalized_query}" produced no ${targetGroup} match using ${engine}.`;
+    return `No ${targetGroup} items matched "${response.normalized_query}" via ${engine}.`;
   }
 
   const labelFilter = response.label_filter
-    ? ` with label filter "${response.label_filter}"`
+    ? ` with label "${response.label_filter}"`
     : "";
   const confidenceFilter =
     response.minimum_confidence !== null &&
     response.minimum_confidence !== undefined &&
     response.confidence_operator
-      ? ` and confidence ${response.confidence_operator} ${response.minimum_confidence}`
+      ? ` confidence ${response.confidence_operator} ${response.minimum_confidence}`
       : "";
+  const filters = [labelFilter, confidenceFilter].filter(Boolean).join(",");
 
-  return `${action} query matched ${count} ${targetGroup} item(s)${labelFilter}${confidenceFilter} using ${engine}.`;
+  if (action === "count") {
+    return `Counted ${count} ${targetGroup} item(s)${filters} via ${engine}.`;
+  }
+  return `Found ${count} ${targetGroup} item(s)${filters} via ${engine}.`;
 };
 
 const getErrorMessage = (error: unknown) => {
@@ -110,7 +124,7 @@ export const useClassify = () => {
     };
   }, []);
 
-  const classify = async (file: File, query: string) => {
+  const classify = async (file: File, query: string, useSahi: boolean = false) => {
     setLoading(true);
     setError(null);
 
@@ -122,14 +136,22 @@ export const useClassify = () => {
     objectUrlRef.current = imageUrl;
 
     try {
-      const response = await findWaste(file, query);
+      const response = await findWaste(file, query, useSahi);
 
       setData({
         imageUrl,
         detectedObjects: mapDetectionsToDetectedObjects(response.detections, response),
+        matchedObjects: mapDetectionsToDetectedObjects(response.matches, response),
         dslCode: response.normalized_query,
         parseTree: response.parse_tree,
+        formalParseTree: response.formal_parse_tree,
+        tokens: response.tokens,
         result: buildResultSummary(response),
+        queryAction: response.query_action,
+        engineUsed: response.engine_used,
+        decisionReason: response.decision_reason,
+        primaryResult: response.primary_result ?? null,
+        fallbackResult: response.fallback_result ?? null,
       });
     } catch (caughtError) {
       setData(null);

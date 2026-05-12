@@ -55,7 +55,25 @@ export interface YoloDetectionResponse {
 
 export interface WasteQueryTreeNodeResponse {
   name: string;
+  is_terminal?: boolean;
+  text?: string | null;
   children: WasteQueryTreeNodeResponse[];
+}
+
+export interface TokenInfoResponse {
+  type: string;
+  text: string;
+}
+
+export interface WasteEngineResultResponse {
+  engine: string;
+  model: ModelStatusResponse;
+  image: ImageMetadataResponse;
+  detections: DetectionObjectResponse[];
+  summary: DetectionSummaryResponse;
+  matches: DetectionObjectResponse[];
+  match_count: number;
+  max_match_confidence: number | null;
 }
 
 export interface WasteFindResponse {
@@ -68,7 +86,9 @@ export interface WasteFindResponse {
   query_action: string;
   waste_group: string;
   targets: string[];
+  tokens: TokenInfoResponse[];
   parse_tree: WasteQueryTreeNodeResponse;
+  formal_parse_tree: WasteQueryTreeNodeResponse;
   confidence_operator?: string | null;
   minimum_confidence?: number | null;
   label_filter?: string | null;
@@ -76,4 +96,8 @@ export interface WasteFindResponse {
   match_count: number;
   engine_used: string;
   decision_reason: string;
+  primary_result?: WasteEngineResultResponse | null;
+  fallback_result?: WasteEngineResultResponse | null;
+  primary_error?: string | null;
+  fallback_error?: string | null;
 }

@@ -1,6 +1,9 @@
 interface Props { code: string }
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import pascal from 'react-syntax-highlighter/dist/esm/languages/prism/pascal';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+SyntaxHighlighter.registerLanguage('pascal', pascal);
 
 const DSLEditor = ({ code }: Props) => {
   return (
