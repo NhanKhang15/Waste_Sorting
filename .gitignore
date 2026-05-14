@@ -11,6 +11,12 @@ Thumbs.db
 *.pth
 *.onnx
 
+# Allow the two shared inference weights to be tracked via Git LFS
+!backend/runtime/weights/yolo26n.pt
+!backend/runs/waste_detector/waste_yolo26s_taco/weights/best.pt
+
 # Env
 .env
 .env.local
+/VIDEO_SCRIPT.en.md
+/VIDEO_SCRIPT.vi.md

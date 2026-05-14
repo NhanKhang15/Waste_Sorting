@@ -1,0 +1,2 @@
+backend/runtime/weights/yolo26n.pt filter=lfs diff=lfs merge=lfs -text
+backend/runs/waste_detector/waste_yolo26s_taco/weights/best.pt filter=lfs diff=lfs merge=lfs -text
