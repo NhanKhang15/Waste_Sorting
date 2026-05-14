@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from app.core.config import BACKEND_DIR, Settings
 
 
@@ -25,3 +28,23 @@ def test_settings_parse_csv_lists() -> None:
         "http://localhost:5173",
         "https://example.com",
     ]
+
+
+def test_settings_parse_hybrid_configuration() -> None:
+    settings = Settings(
+        hybrid_weak_groups="organic, recyclable",
+        hybrid_group_min_confidence="recyclable=0.40, inorganic=0.35",
+        hybrid_strategy="MERGE",
+    )
+
+    assert settings.weak_group_list == ["organic", "recyclable"]
+    assert settings.group_confidence_overrides == {
+        "recyclable": 0.40,
+        "inorganic": 0.35,
+    }
+    assert settings.hybrid_strategy == "merge"
+
+
+def test_settings_reject_invalid_hybrid_strategy() -> None:
+    with pytest.raises(ValidationError, match="hybrid_strategy"):
+        Settings(hybrid_strategy="balanced")

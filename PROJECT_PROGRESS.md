@@ -1,6 +1,6 @@
 # Waste Sorting Project Progress
 
-**Cap nhat:** 2026-05-11 (lan 4)
+**Cap nhat:** 2026-05-12 (lan 5)
 
 ## 1. Tong quan
 
@@ -346,7 +346,7 @@ Co 7 file test trong `backend/tests/`:
 | `test_waste_rules.py` | WasteRuleMatcher: group filter, confidence, label, count action |
 | `test_yolov26_detector.py` | YOLO detector inference |
 
-Tinh trang: **24 passed** (xac nhan cuoi cung 2026-05-10).
+Tinh trang: repo hien co **27 test functions** trong `backend/tests/`. Frontend production build + lint da duoc xac nhan lai ngay **2026-05-12**. Backend pytest can moi truong Python **3.11/3.12** co day du dependencies de rerun day du.
 
 ---
 
@@ -378,7 +378,7 @@ Tinh trang: **24 passed** (xac nhan cuoi cung 2026-05-10).
 
 ### 9.1. Yeu cau tien quyet
 
-- Python >= 3.11
+- Python 3.11 hoac 3.12
 - Node.js >= 18 + npm
 - (Tuy chon) GPU CUDA neu muon chay model nhanh hon
 
@@ -450,6 +450,8 @@ npm run dev
 ```
 
 Frontend se chay tai `http://localhost:5173`.
+
+> Neu PowerShell chan `npm.ps1`, hay dung `npm.cmd run dev`, `npm.cmd run build`, va `npm.cmd run lint`.
 
 ### 9.4. Chay toan bo (ca backend lan frontend)
 

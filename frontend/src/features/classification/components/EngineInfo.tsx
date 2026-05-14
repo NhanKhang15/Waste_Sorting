@@ -10,6 +10,7 @@ interface Props {
 const ENGINE_LABELS: Record<string, string> = {
   custom_waste_detector: "Custom Waste Model",
   coco_rule_map: "COCO + Rule Map",
+  merged: "Hybrid Merge",
 };
 
 const EngineStatCard = ({
@@ -59,25 +60,40 @@ const EngineStatCard = ({
 
 const EngineInfo = ({ engineUsed, decisionReason, primaryResult, fallbackResult }: Props) => {
   const isPrimary = engineUsed === "custom_waste_detector";
+  const isMerged = engineUsed === "merged";
   const engineLabel = ENGINE_LABELS[engineUsed] ?? engineUsed;
 
   return (
     <div className="space-y-3">
       <div
         className={`rounded-2xl px-4 py-3 flex items-center gap-3 ${
-          isPrimary
+          isMerged
+            ? "bg-sky-50 border border-sky-200"
+            : isPrimary
             ? "bg-green-50 border border-green-200"
             : "bg-amber-50 border border-amber-200"
         }`}
       >
         <div
           className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            isPrimary ? "bg-green-500" : "bg-amber-500"
+            isMerged
+              ? "bg-sky-500"
+              : isPrimary
+              ? "bg-green-500"
+              : "bg-amber-500"
           }`}
         />
         <div>
           <p className="text-[9px] font-bold uppercase tracking-widest opacity-50">Engine used</p>
-          <p className={`text-sm font-bold ${isPrimary ? "text-green-800" : "text-amber-800"}`}>
+          <p
+            className={`text-sm font-bold ${
+              isMerged
+                ? "text-sky-800"
+                : isPrimary
+                ? "text-green-800"
+                : "text-amber-800"
+            }`}
+          >
             {engineLabel}
           </p>
         </div>
@@ -92,7 +108,7 @@ const EngineInfo = ({ engineUsed, decisionReason, primaryResult, fallbackResult 
         <EngineStatCard
           label="Primary (Custom Model)"
           result={primaryResult}
-          isActive={isPrimary}
+          isActive={isPrimary || isMerged}
         />
       )}
       {fallbackResult && (

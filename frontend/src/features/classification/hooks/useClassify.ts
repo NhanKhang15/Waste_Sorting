@@ -43,6 +43,12 @@ export interface UseClassifyData {
 
 const clampPercentage = (value: number) => Math.max(0, Math.min(100, value));
 
+const ENGINE_LABELS: Record<string, string> = {
+  custom_waste_detector: "custom model",
+  coco_rule_map: "COCO fallback",
+  merged: "hybrid merge",
+};
+
 const mapDetectionsToDetectedObjects = (
   detections: DetectionObjectResponse[],
   response: WasteFindResponse,
@@ -74,7 +80,7 @@ const mapDetectionsToDetectedObjects = (
 const buildResultSummary = (response: WasteFindResponse) => {
   const targetGroup = response.waste_group;
   const action = response.query_action;
-  const engine = response.engine_used === "custom_waste_detector" ? "custom model" : "COCO fallback";
+  const engine = ENGINE_LABELS[response.engine_used] ?? response.engine_used;
   const count = response.match_count;
 
   if (count === 0) {
