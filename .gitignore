@@ -6,7 +6,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Model weights at root
+# Model artifacts
 *.pt
 *.pth
 *.onnx
@@ -15,8 +15,10 @@ Thumbs.db
 !backend/runtime/weights/yolo26n.pt
 !backend/runs/waste_detector/waste_yolo26s_taco/weights/best.pt
 
-# Env
+# Environment files
 .env
 .env.local
+
+# Local working docs
 /VIDEO_SCRIPT.en.md
 /VIDEO_SCRIPT.vi.md

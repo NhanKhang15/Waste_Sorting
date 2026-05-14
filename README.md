@@ -108,3 +108,24 @@ If you cloned the repo before installing Git LFS, rerun `git lfs pull` before te
 - Backend setup and API details: [backend/README.md](backend/README.md)
 - Frontend setup and scripts: [frontend/README.md](frontend/README.md)
 - Historical implementation notes: [PROJECT_PROGRESS.md](PROJECT_PROGRESS.md)
+
+## Pushing to remote
+
+Because this project includes large model weights (`*.pt`), Git LFS must be used.
+
+1. Ensure Git LFS is tracking the correct files:
+   ```powershell
+   git lfs track "*.pt"
+   ```
+2. Add all changes and weights to staging:
+   ```powershell
+   git add .
+   ```
+3. Commit your changes:
+   ```powershell
+   git commit -m "feat: your commit message here"
+   ```
+4. Push to your repository:
+   ```powershell
+   git push origin main
+   ```

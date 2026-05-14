@@ -577,3 +577,32 @@ Den 2026-05-11, project da hoan thanh cac thanh phan nen tang:
 - Hien thi token stream (`TokenStream`), ca hai loai parse tree — semantic va formal (`TreeVisualizer`).
 - Hien thi engine info: `engine_used`, `decision_reason`, primary/fallback match count va confidence (`EngineInfo`).
 - Count action hien thi big count badge trong `MatchResult`.
+
+---
+
+## 12. Huong dan Push Code (Git LFS)
+
+Du an nay chua cac file model weights lon (`*.pt`), do do ban can dung Git LFS khi push.
+
+**Buoc 1:** Dam bao Git LFS dang hoat dong va track file model
+```powershell
+git lfs install
+git lfs track "*.pt"
+```
+
+**Buoc 2:** Kiem tra trang thai cac file (bao gom cac thay doi ve code va docs)
+```powershell
+git status
+```
+
+**Buoc 3:** Them vao staging va commit
+```powershell
+git add .
+git commit -m "chore: update documentation and fix gitignore rules"
+```
+
+**Buoc 4:** Push len remote repository (vidu: main)
+```powershell
+git push origin main
+```
+Luu y: Qua trinh push co the hoi lau do phai upload cac file weights (~5MB va ~20MB).
